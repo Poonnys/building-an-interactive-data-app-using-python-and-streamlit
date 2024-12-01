@@ -3,42 +3,33 @@ import streamlit as st
 import plotly.express as px
 
 
-st.title("My First Streamlit App")
-st.header("Hello World 👏")
-st.write("This is an example of a simple Streamlit app.")
-
+st.title("ข้อมูลการเลี้ยงเป็ดไข่")
+st.header("ในประเทศไทย")
+st.write("นี่คือจำนวนการเลี้ยงเป็ดไข่ทั้งหมดของประเทศไทย")
 
 df = pd.read_csv("../datasets/1642645053.csv", encoding="tis-620")
-st.write(df)
+provinces = df["สถานที่เลี้ยงสัตว์ จังหวัด"].unique()
+#st.write(provinces)
 
-url = "https://raw.githubusercontent.com/mwaskom/seaborn-data/refs/heads/master/anagrams.csv"
-df = pd.read_csv(url)
-st.write(df)
-
-number = st.slider("Select a number", 0, 100, 50)
-st.write("The current number is ", number)
-
-rating = st.radio(
-    "How would you rate this class?",
-    ("1", "2", "3", "4", "5")
+option = st.selectbox(
+        "which provinces?",
+        provinces
 )
-st.write(f"You selected {rating}")
 
-url = "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv"
+st.write(df[    df["สถานที่เลี้ยงสัตว์ จังหวัด"] == option  ])
 
-df = pd.read_csv(url)
-df_grouped_by_species = df.groupby("species")["body_mass_g"].mean()
-st.bar_chart(df_grouped_by_species)
+provinces_df = pd.read_csv("https://raw.githubusercontent.com/dataengineercafe/thailand-province-latitude-longitude/refs/heads/main/provinces.csv")
+joined = pd.merge(df, provinces_df, how="left", left_on="สถานที่เลี้ยงสัตว์ จังหวัด", right_on="province_name")
+   
 
-# พลอตกราฟด้วย Plotly
-fig = px.bar(df_grouped_by_species.reset_index(), x="species", y="body_mass_g")
-st.plotly_chart(fig)
+selected_df = joined[["สถานที่เลี้ยงสัตว์ จังหวัด", "province_lat", "province_lon", "โคเนื้อ พื้นเมือง เพศผู้ (ตัว)"]]
+cleaned = selected_df.dropna()
+cleaned["โคเนื้อ พื้นเมือง เพศผู้ (ตัว)"] = cleaned[cleaned["โคเนื้อ พื้นเมือง เพศผู้ (ตัว)"] != "1,480"]["โคเนื้อ พื้นเมือง เพศผู้ (ตัว)"].astype(int)
 
-with st.sidebar:
-    st.write("This is a sidebar")
-    option = st.selectbox(
-        "Which number do you like best?",
-        ["1", "2", "3", "4", "5"]
-    )
+grouped_df = cleaned.groupby("สถานที่เลี้ยงสัตว์ จังหวัด")["โคเนื้อ พื้นเมือง เพศผู้ (ตัว)"].sum().reset_index()
+joined_df = pd.merge(grouped_df, provinces_df, how="left", left_on="สถานที่เลี้ยงสัตว์ จังหวัด", right_on="province_name")
+st.write(joined_df)
 
-    
+joined_df = joined_df.rename(columns={"โคเนื้อ พื้นเมือง เพศผู้ (ตัว)": "amount"})
+
+st.map(joined_df, latitude="province_lat", longitude="province_lon", size="amount")
